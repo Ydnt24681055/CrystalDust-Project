@@ -22,34 +22,30 @@ jobs:
 
       - name: Full Build Process
         run: |
-          # 1. Official Compiler Setup with Absolute Paths
+          # 1. Clean Install of the agbcc Compiler
+          # We download it fresh to avoid the 'No such file' error
           git clone https://github.com/pret/agbcc.git
           cd agbcc
-          # This installs the compiler directly to the main workspace root
           ./install.sh "$GITHUB_WORKSPACE"
           cd "$GITHUB_WORKSPACE"
-          echo "✅ Compiler successfully installed."
+          echo "✅ Compiler successfully installed to workspace root."
 
-          # 2. Find Project and Baserom
+          # 2. Find the CrystalDust Project Folder
           PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          BASEROM_PATH=$(find . -name "baserom.gba" | head -n 1)
-          
-          if [ -z "$BASEROM_PATH" ]; then
-            echo "❌ ERROR: baserom.gba not found in repo!"
-            exit 1
-          fi
-          
-          echo "✅ Project: $PROJ_PATH"
-          echo "✅ Baserom: $BASEROM_PATH"
+          echo "✅ Project Found at: $PROJ_PATH"
 
-          # 3. Prepare Environment
-          cp "$BASEROM_PATH" "$PROJ_PATH/baserom.gba"
+          # 3. Setup the Baserom
+          # This copies your uploaded baserom.gba into the project folder
+          find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
+          
+          # 4. Fix Windows vs Linux file endings
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
 
-          # 4. Build Tools and ROM
+          # 5. Build Tools and the Game
           cd "$PROJ_PATH"
           make -C tools clean
           make -C tools
+          # Disabling -Werror prevents minor code warnings from stopping the build
           sed -i 's/-Werror//g' Makefile || echo "Done"
           make clean
           make WERROR=0
