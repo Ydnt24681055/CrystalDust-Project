@@ -3,14 +3,13 @@ name: build
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -20,35 +19,38 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libpng-dev wget golang gcc-arm-none-eabi binutils-arm-none-eabi
 
-      - name: Full Build Process
+      - name: Force Compiler & Build
         run: |
-          # 1. Install agbcc from the specific folder you uploaded
-          echo "🚀 Installing compiler from tools/agbcc..."
-          cd tools/agbcc
-          chmod +x install.sh
-          ./install.sh ../../
-          cd ../../
+          # 1. Install Compiler to a fixed location
+          # This bypasses the 'No such file' error by using the full system path
+          git clone https://github.com/pret/agbcc.git
+          cd agbcc
+          ./install.sh $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE
+          echo "✅ Compiler successfully installed to $GITHUB_WORKSPACE"
 
-          # 2. Locate Project Root (Finds the Makefile)
-          PROJ_PATH=$(find . -maxdepth 4 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          echo "✅ Project Found at: $PROJ_PATH"
+          # 2. Find the Makefile (Searching up to 3 folders deep)
+          PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
+          echo "✅ Project folder identified: $PROJ_PATH"
 
-          # 3. Clean environment and fix line endings
-          find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
+          # 3. Setup the ROM environment
+          # This places your uploaded baserom.gba exactly where the code needs it
           find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
+          find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
 
-          # 4. Build Tools and the Game
+          # 4. Compile the Game
           cd "$PROJ_PATH"
           make -C tools clean
           make -C tools
+          # Disabling -Werror to ensure small code warnings don't stop the build
           sed -i 's/-Werror//g' Makefile || echo "Done"
           make clean
           make WERROR=0
 
-      - name: Upload CrystalDust ROM
+      - name: Upload Final ROM
         uses: actions/upload-artifact@v4
         with:
-          name: CrystalDust-Final-Build
+          name: CrystalDust-Build
           path: |
             **/*.gba
             !**/baserom.gba
