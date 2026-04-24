@@ -19,38 +19,39 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libpng-dev wget golang gcc-arm-none-eabi binutils-arm-none-eabi
 
-      - name: Force Compiler & Build
+      - name: Build from Root
         run: |
-          # 1. Install Compiler to a fixed location
-          # This bypasses the 'No such file' error by using the full system path
-          git clone https://github.com/pret/agbcc.git
-          cd agbcc
-          ./install.sh $GITHUB_WORKSPACE
-          cd $GITHUB_WORKSPACE
-          echo "✅ Compiler successfully installed to $GITHUB_WORKSPACE"
+          # 1. Install the agbcc folder you moved to the main directory
+          if [ -d "agbcc" ]; then
+            echo "✅ agbcc found in root. Installing..."
+            cd agbcc
+            chmod +x install.sh
+            ./install.sh "$GITHUB_WORKSPACE"
+            cd "$GITHUB_WORKSPACE"
+          else
+            echo "❌ agbcc folder NOT found in the main directory!"
+            exit 1
+          fi
 
-          # 2. Find the Makefile (Searching up to 3 folders deep)
+          # 2. Locate Project Root
           PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          echo "✅ Project folder identified: $PROJ_PATH"
-
-          # 3. Setup the ROM environment
-          # This places your uploaded baserom.gba exactly where the code needs it
+          
+          # 3. Setup Baserom and Fix Windows Line Endings
           find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
 
-          # 4. Compile the Game
+          # 4. Final Compile
           cd "$PROJ_PATH"
           make -C tools clean
           make -C tools
-          # Disabling -Werror to ensure small code warnings don't stop the build
           sed -i 's/-Werror//g' Makefile || echo "Done"
           make clean
           make WERROR=0
 
-      - name: Upload Final ROM
+      - name: Upload Finished ROM
         uses: actions/upload-artifact@v4
         with:
-          name: CrystalDust-Build
+          name: CrystalDust-Final-Build
           path: |
             **/*.gba
             !**/baserom.gba
