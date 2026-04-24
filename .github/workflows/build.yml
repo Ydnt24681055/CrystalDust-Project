@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # This gives you the "Run workflow" button manually
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,36 +21,36 @@ jobs:
 
       - name: Force Compiler & Build
         run: |
-          # 1. Clean Compiler Installation
-          # This ensures the 'agbcc' folder exists exactly where the computer expects it
+          # 1. Install Compiler to a fixed location
+          # This bypasses the 'No such file' error by using the full system path
           git clone https://github.com/pret/agbcc.git
           cd agbcc
-          ./install.sh "$GITHUB_WORKSPACE"
-          cd "$GITHUB_WORKSPACE"
-          echo "✅ Compiler is now ready in the root."
+          ./install.sh $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE
+          echo "✅ Compiler successfully installed to $GITHUB_WORKSPACE"
 
           # 2. Find the Makefile (Searching up to 3 folders deep)
           PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          echo "✅ Building in project folder: $PROJ_PATH"
+          echo "✅ Project folder identified: $PROJ_PATH"
 
-          # 3. Setup Baserom and Fix Windows Line Endings
-          # This ensures your baserom.gba is in the right spot for the build
+          # 3. Setup the ROM environment
+          # This places your uploaded baserom.gba exactly where the code needs it
           find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
 
-          # 4. Compile Tools and Game
+          # 4. Compile the Game
           cd "$PROJ_PATH"
           make -C tools clean
           make -C tools
-          # Removing -Werror so minor warnings don't stop our progress
+          # Disabling -Werror to ensure small code warnings don't stop the build
           sed -i 's/-Werror//g' Makefile || echo "Done"
           make clean
           make WERROR=0
 
-      - name: Upload Finished ROM
+      - name: Upload Final ROM
         uses: actions/upload-artifact@v4
         with:
-          name: CrystalDust-Final-Build
+          name: CrystalDust-Build
           path: |
             **/*.gba
             !**/baserom.gba
