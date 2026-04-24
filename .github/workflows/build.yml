@@ -22,22 +22,30 @@ jobs:
 
       - name: Full Build Process
         run: |
-          # 1. Install agbcc from the specific folder you uploaded
-          echo "🚀 Installing compiler from tools/agbcc..."
-          cd tools/agbcc
-          chmod +x install.sh
-          ./install.sh ../../
-          cd ../../
+          # 1. Official Compiler Setup
+          git clone https://github.com/pret/agbcc.git
+          cd agbcc
+          ./install.sh ../
+          cd ..
+          echo "✅ Compiler Ready"
 
-          # 2. Locate Project Root (Finds the Makefile)
-          PROJ_PATH=$(find . -maxdepth 4 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          echo "✅ Project Found at: $PROJ_PATH"
+          # 2. Find Project and Baserom
+          PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
+          BASEROM_PATH=$(find . -name "baserom.gba" | head -n 1)
+          
+          if [ -z "$BASEROM_PATH" ]; then
+            echo "❌ ERROR: baserom.gba not found in repo!"
+            exit 1
+          fi
+          
+          echo "✅ Project: $PROJ_PATH"
+          echo "✅ Baserom: $BASEROM_PATH"
 
-          # 3. Clean environment and fix line endings
+          # 3. Prepare Environment
+          cp "$BASEROM_PATH" "$PROJ_PATH/baserom.gba"
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
-          find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
 
-          # 4. Build Tools and the Game
+          # 4. Build Tools and ROM
           cd "$PROJ_PATH"
           make -C tools clean
           make -C tools
