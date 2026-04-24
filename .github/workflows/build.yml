@@ -22,21 +22,20 @@ jobs:
 
       - name: Full Build Process
         run: |
-          # 1. Install the agbcc folder you uploaded
-          # We use -d to make sure the folder actually exists before trying to install
-          if [ -d "agbcc" ]; then
-            cd agbcc
-            chmod +x install.sh
-            ./install.sh ../
-            cd ..
-            echo "✅ Local Compiler Installed"
-          else
-            echo "❌ agbcc folder not found in the root! Checking subfolders..."
-            AGB_PATH=$(find . -name "agbcc" -type d -head -n 1)
+          # 1. Locate and Install agbcc from inside tools
+          # We search specifically for the install.sh inside the agbcc folder
+          AGB_PATH=$(find . -path "*/tools/agbcc/install.sh" | head -n 1 | xargs dirname)
+          
+          if [ -n "$AGB_PATH" ]; then
+            echo "✅ Found agbcc at: $AGB_PATH"
             cd "$AGB_PATH"
             chmod +x install.sh
+            # Since it's inside tools/agbcc, we go up TWO levels to install to root
             ./install.sh ../../
             cd -
+          else
+            echo "❌ Could not find tools/agbcc/install.sh"
+            exit 1
           fi
 
           # 2. Locate Project Root
@@ -44,6 +43,7 @@ jobs:
           echo "✅ Project Found at: $PROJ_PATH"
 
           # 3. Fix Environment and Line Endings
+          # This is critical since files were moved manually
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
           find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
 
