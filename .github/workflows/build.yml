@@ -22,12 +22,13 @@ jobs:
 
       - name: Full Build Process
         run: |
-          # 1. Official Compiler Setup
+          # 1. Official Compiler Setup with Absolute Paths
           git clone https://github.com/pret/agbcc.git
           cd agbcc
-          ./install.sh ../
-          cd ..
-          echo "✅ Compiler Ready"
+          # This installs the compiler directly to the main workspace root
+          ./install.sh "$GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE"
+          echo "✅ Compiler successfully installed."
 
           # 2. Find Project and Baserom
           PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
