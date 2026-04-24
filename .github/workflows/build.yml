@@ -21,22 +21,20 @@ jobs:
 
       - name: Build from Root
         run: |
-          # 1. Install the agbcc folder you moved to the main directory
-          if [ -d "agbcc" ]; then
-            echo "✅ agbcc found in root. Installing..."
-            cd agbcc
-            chmod +x install.sh
-            ./install.sh "$GITHUB_WORKSPACE"
-            cd "$GITHUB_WORKSPACE"
-          else
-            echo "❌ agbcc folder NOT found in the main directory!"
-            exit 1
-          fi
+          # 1. Use the agbcc folder you just moved to the root
+          echo "🚀 Installing compiler from root..."
+          cd agbcc
+          chmod +x install.sh
+          # This installs the compiler to the main workspace
+          ./install.sh "$GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE"
 
-          # 2. Locate Project Root
+          # 2. Locate the Project (Finds the Makefile)
           PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          
+          echo "✅ Project identified at: $PROJ_PATH"
+
           # 3. Setup Baserom and Fix Windows Line Endings
+          # This moves your uploaded baserom into the project folder
           find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
 
@@ -44,11 +42,12 @@ jobs:
           cd "$PROJ_PATH"
           make -C tools clean
           make -C tools
+          # Disabling -Werror prevents small warnings from stopping the build
           sed -i 's/-Werror//g' Makefile || echo "Done"
           make clean
           make WERROR=0
 
-      - name: Upload Finished ROM
+      - name: Upload Final ROM
         uses: actions/upload-artifact@v4
         with:
           name: CrystalDust-Final-Build
