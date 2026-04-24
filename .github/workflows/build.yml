@@ -20,42 +20,33 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libpng-dev wget golang gcc-arm-none-eabi binutils-arm-none-eabi
 
-      - name: Build from Root
+      - name: Force Clean Build
         run: |
-          # 1. Force the compiler installation without using 'cp'
-          # We go directly into the folder you moved and run the script
-          echo "🚀 Starting compiler setup..."
-          if [ -d "agbcc" ]; then
-            cd agbcc
-            chmod +x install.sh
-            ./install.sh "$GITHUB_WORKSPACE"
-            cd "$GITHUB_WORKSPACE"
-            echo "✅ Compiler installed successfully."
-          else
-            echo "❌ agbcc folder is missing or empty! Re-cloning to fix..."
-            git clone https://github.com/pret/agbcc.git
-            cd agbcc
-            ./install.sh "$GITHUB_WORKSPACE"
-            cd "$GITHUB_WORKSPACE"
-          fi
+          # 1. COMPLETELY IGNORE existing folders and download fresh agbcc
+          # This stops the 'cannot stat agbcc' error forever.
+          rm -rf agbcc
+          git clone https://github.com/pret/agbcc.git
+          cd agbcc
+          ./install.sh "$GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE"
+          echo "✅ Fresh compiler installed."
 
-          # 2. Locate the Makefile (Project Root)
+          # 2. Find where the project is
           PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          echo "✅ Project path: $PROJ_PATH"
+          echo "✅ Project found at: $PROJ_PATH"
 
-          # 3. Setup Baserom and Fix Windows Characters
+          # 3. Move your baserom and fix Windows file issues
           find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
 
-          # 4. Final Compile
+          # 4. Build Tools and ROM
           cd "$PROJ_PATH"
-          make -C tools clean
           make -C tools
           sed -i 's/-Werror//g' Makefile || echo "Done"
           make clean
           make WERROR=0
 
-      - name: Upload Final ROM
+      - name: Upload Finished ROM
         uses: actions/upload-artifact@v4
         with:
           name: CrystalDust-Final-Build
