@@ -3,14 +3,13 @@ name: build
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch: # This gives you the "Run workflow" button manually
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -20,37 +19,35 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libpng-dev wget golang gcc-arm-none-eabi binutils-arm-none-eabi
 
-      - name: Full Build Process
+      - name: Force Compiler & Build
         run: |
-          # 1. Clean Install of the agbcc Compiler
-          # We download it fresh to avoid the 'No such file' error
+          # 1. Clean Compiler Installation
+          # This ensures the 'agbcc' folder exists exactly where the computer expects it
           git clone https://github.com/pret/agbcc.git
           cd agbcc
           ./install.sh "$GITHUB_WORKSPACE"
           cd "$GITHUB_WORKSPACE"
-          echo "✅ Compiler successfully installed to workspace root."
+          echo "✅ Compiler is now ready in the root."
 
-          # 2. Find the CrystalDust Project Folder
+          # 2. Find the Makefile (Searching up to 3 folders deep)
           PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          echo "✅ Project Found at: $PROJ_PATH"
+          echo "✅ Building in project folder: $PROJ_PATH"
 
-          # 3. Setup the Baserom
-          # This copies your uploaded baserom.gba into the project folder
+          # 3. Setup Baserom and Fix Windows Line Endings
+          # This ensures your baserom.gba is in the right spot for the build
           find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
-          
-          # 4. Fix Windows vs Linux file endings
           find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
 
-          # 5. Build Tools and the Game
+          # 4. Compile Tools and Game
           cd "$PROJ_PATH"
           make -C tools clean
           make -C tools
-          # Disabling -Werror prevents minor code warnings from stopping the build
+          # Removing -Werror so minor warnings don't stop our progress
           sed -i 's/-Werror//g' Makefile || echo "Done"
           make clean
           make WERROR=0
 
-      - name: Upload CrystalDust ROM
+      - name: Upload Finished ROM
         uses: actions/upload-artifact@v4
         with:
           name: CrystalDust-Final-Build
