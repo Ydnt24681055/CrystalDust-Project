@@ -1,55 +1,31 @@
-name: build
+name: CI
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
 
-      - name: Install System Tools
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libpng-dev wget golang gcc-arm-none-eabi binutils-arm-none-eabi
+          sudo apt-get install -y gcc-arm-none-eabi build-essential libpng-dev
 
-      - name: Force Clean Build
-        run: |
-          # 1. COMPLETELY IGNORE existing folders and download fresh agbcc
-          # This stops the 'cannot stat agbcc' error forever.
-          rm -rf agbcc
-          git clone https://github.com/pret/agbcc.git
-          cd agbcc
-          ./install.sh "$GITHUB_WORKSPACE"
-          cd "$GITHUB_WORKSPACE"
-          echo "✅ Fresh compiler installed."
+      - name: Build tools
+        run: make -C tools
 
-          # 2. Find where the project is
-          PROJ_PATH=$(find . -maxdepth 3 -name "Makefile" -exec grep -l "src" {} + | head -n 1 | xargs dirname)
-          echo "✅ Project found at: $PROJ_PATH"
+      - name: Build ROM
+        run: make
 
-          # 3. Move your baserom and fix Windows file issues
-          find . -name "baserom.gba" -exec cp {} "$PROJ_PATH/baserom.gba" \;
-          find "$PROJ_PATH" -type f -exec sed -i 's/\r$//' {} +
-
-          # 4. Build Tools and ROM
-          cd "$PROJ_PATH"
-          make -C tools
-          sed -i 's/-Werror//g' Makefile || echo "Done"
-          make clean
-          make WERROR=0
-
-      - name: Upload Finished ROM
+      - name: Upload ROM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CrystalDust-Final-Build
-          path: |
-            **/*.gba
-            !**/baserom.gba
+          name: CrystalDust-ROM
+          path: '*.gba'
