@@ -23,7 +23,6 @@ jobs:
 
       - name: Install agbcc (GBA Compiler)
         run: |
-          git clone https://github.com/pret/agbcc.git
           cd agbcc
           ./build.sh
           ./install.sh ../
