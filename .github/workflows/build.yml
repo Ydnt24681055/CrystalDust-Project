@@ -38,10 +38,8 @@ jobs:
 
       - name: Handle asset and berry_fix requirements
         run: |
-          # Create a dummy baserom in case the makefile checks for original asset extraction
-          touch baserom.gba
-          
-          # Create placeholder files to stop the build from crashing on missing berry_fix binaries
+          # Since your real baserom.gba is present, we only ensure berry_fix 
+          # structures exist so the compilation doesn't halt on side-payloads.
           mkdir -p tools/berry_fix
           touch tools/berry_fix/berry_fix.gba
           mkdir -p berry_fix
@@ -49,7 +47,7 @@ jobs:
 
       - name: Compile ROM
         run: |
-          # Compiles using all available processor cores with the nonmatching flag for custom forks
+          # Compiles using all available processor cores
           make -j$(nproc) nonmatching
 
       - name: Upload Build Artifact
