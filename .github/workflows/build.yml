@@ -33,16 +33,12 @@ jobs:
 
       - name: Build local repository tools
         run: |
-          # Clean and rebuild local tools (gftox, pngtosrc) to make sure they process the new graphics folder correctly
-          make -C tools/ clean
+          # Rebuild local tools natively to process your new pokehs graphics folder
           make -C tools/
 
       - name: Handle asset and berry_fix requirements
         run: |
-          # Since your real baserom.gba is present, we clear out any previously cached build files 
-          # to ensure the compiler processes the new pokehs graphics natively.
-          make clean
-          
+          # Set up berry_fix placeholders so payload generation doesn't crash
           mkdir -p tools/berry_fix
           touch tools/berry_fix/berry_fix.gba
           mkdir -p berry_fix
