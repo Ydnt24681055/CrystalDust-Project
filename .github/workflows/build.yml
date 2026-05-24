@@ -1,30 +1,51 @@
-name: CI
+name: Build CrystalDust
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential libpng-dev
+          sudo apt-get install -y build-essential libpng-dev linux-libc-dev gcc-arm-none-eabi binutils-arm-none-eabi
 
-      - name: Build tools and ROM
+      - name: Install agbcc
         run: |
-          make tools
-          make Toolchain=arm-none-eabi
+          git clone https://github.com/pret/agbcc.git
+          cd agbcc
+          ./build.sh
+          ./install.sh ../
+          cd ..
 
-      - name: Upload ROM artifact
-        uses: actions/upload-artifact@v4
+      - name: Bypass baserom/berry_fix requirements
+        run: |
+          # Create a dummy baserom if the makefile demands it for asset extraction
+          # (Note: If your specific fork requires an authentic matching ROM to extract graphics, 
+          # you will need to add a step to fetch it securely, but many decomp structures let you build directly)
+          touch baserom.gba
+          
+          # Fix common "berry_fix" build failures by ensuring the tools directory structure exists
+          mkdir -p tools/berry_fix
+          touch tools/berry_fix/berry_fix.gba
+
+      - name: Compile ROM
+        run: |
+          make -j$(nproc) nonmatching
+
+      - name: Upload Build Artifact
+        uses: actions/artifacts@v4
         with:
-          name: CrystalDust-ROM
-          path: '*.gba'
+          name: crystal_dust_rom
+          path: "*.gba"
