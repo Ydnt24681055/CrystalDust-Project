@@ -23,6 +23,8 @@ jobs:
 
       - name: Install agbcc (GBA Compiler)
         run: |
+          rm -rf agbcc
+          git clone https://github.com/pret/agbcc.git
           cd agbcc
           chmod -R +x .
           ./build.sh
@@ -31,13 +33,16 @@ jobs:
 
       - name: Build local repository tools
         run: |
-          # Build tools like gftox, pngtosrc, etc., needed for asset compilation
+          # Clean and rebuild local tools (gftox, pngtosrc) to make sure they process the new graphics folder correctly
+          make -C tools/ clean
           make -C tools/
 
       - name: Handle asset and berry_fix requirements
         run: |
-          # Since your real baserom.gba is present, we only ensure berry_fix 
-          # structures exist so the compilation doesn't halt on side-payloads.
+          # Since your real baserom.gba is present, we clear out any previously cached build files 
+          # to ensure the compiler processes the new pokehs graphics natively.
+          make clean
+          
           mkdir -p tools/berry_fix
           touch tools/berry_fix/berry_fix.gba
           mkdir -p berry_fix
@@ -45,7 +50,7 @@ jobs:
 
       - name: Compile ROM
         run: |
-          # Compiles using all available processor cores
+          # Compiles using all available processor cores with the nonmatching flag
           make -j$(nproc) nonmatching
 
       - name: Upload Build Artifact
