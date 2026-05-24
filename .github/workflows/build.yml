@@ -24,9 +24,7 @@ jobs:
       - name: Install agbcc (GBA Compiler)
         run: |
           cd agbcc
-          chmod +x build.sh install.sh
-          find . -type f -name "*.sh" -exec chmod +x {} +
-          chmod +x gcc/move-if-change
+          chmod -R +x .
           ./build.sh
           ./install.sh ../
           cd ..
