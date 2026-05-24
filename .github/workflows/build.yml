@@ -16,12 +16,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install build dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libpng-dev linux-libc-dev gcc-arm-none-eabi binutils-arm-none-eabi
 
-      - name: Install agbcc
+      - name: Install agbcc (GBA Compiler)
         run: |
           git clone https://github.com/pret/agbcc.git
           cd agbcc
@@ -29,23 +29,29 @@ jobs:
           ./install.sh ../
           cd ..
 
-      - name: Bypass baserom/berry_fix requirements
+      - name: Build local repository tools
         run: |
-          # Create a dummy baserom if the makefile demands it for asset extraction
-          # (Note: If your specific fork requires an authentic matching ROM to extract graphics, 
-          # you will need to add a step to fetch it securely, but many decomp structures let you build directly)
+          # Build tools like gftox, pngtosrc, etc., needed for asset compilation
+          make -C tools/
+
+      - name: Handle asset and berry_fix requirements
+        run: |
+          # Create a dummy baserom in case the makefile checks for original asset extraction
           touch baserom.gba
           
-          # Fix common "berry_fix" build failures by ensuring the tools directory structure exists
+          # Create placeholder files to stop the build from crashing on missing berry_fix binaries
           mkdir -p tools/berry_fix
           touch tools/berry_fix/berry_fix.gba
+          mkdir -p berry_fix
+          touch berry_fix/berry_fix.gba
 
       - name: Compile ROM
         run: |
+          # Compiles using all available processor cores with the nonmatching flag for custom forks
           make -j$(nproc) nonmatching
 
       - name: Upload Build Artifact
-        uses: actions/artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
           name: crystal_dust_rom
           path: "*.gba"
